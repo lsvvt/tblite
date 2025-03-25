@@ -124,6 +124,7 @@ class TBLite(ase.calculators.calculator.Calculator):
         "electric_field": None,
         "spin_polarization": None,
         "electronic_temperature": 300.0,
+        "alpb": None,
         "cache_api": True,
         "verbosity": 1,
     }
@@ -176,6 +177,7 @@ class TBLite(ase.calculators.calculator.Calculator):
             "method" in changed_parameters
             or "electric_field" in changed_parameters
             or "spin_polarization" in changed_parameters
+            or "alpb" in changed_parameters
         ):
             self._xtb = None
             self._res = None
@@ -293,10 +295,28 @@ class TBLite(ase.calculators.calculator.Calculator):
                 )
             if self.parameters.spin_polarization is not None:
                 calc.add("spin-polarization", self.parameters.spin_polarization)
-
+        
+            alpb_par = self.parameters.alpb
+            if alpb_par is not None:
+                if isinstance(alpb_par, (str, float, int)):
+                    calc.add("alpb-solvation", alpb_par)
+                elif isinstance(alpb_par, dict):
+                    solvent = alpb_par.get("solvent", "water")
+                    soln_state = alpb_par.get("state", None)
+                    if soln_state is not None:
+                        calc.add("alpb-solvation", solvent, soln_state)
+                    else:
+                        calc.add("alpb-solvation", solvent)
+                elif isinstance(alpb_par, (list, tuple)):
+                    calc.add("alpb-solvation", *alpb_par)
+                else:
+                    raise ValueError(
+                        "Unrecognized format for 'alpb' parameter. "
+                        "Must be string, numeric, dict, or list/tuple."
+                    )
         except RuntimeError as e:
             raise ase.calculators.calculator.InputError(str(e)) from e
-
+        
         return calc
 
     def calculate(
